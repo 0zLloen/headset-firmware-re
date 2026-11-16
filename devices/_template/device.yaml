@@ -1,0 +1,113 @@
+# yaml-language-server: $schema=../../schema/device.schema.json
+# Copy this folder to devices/<vendor>-<model>/ and replace every value.
+# Only name, vendor and usb are required: delete any section you have nothing for yet.
+# Every item carries:
+#   evidence: verified | inferred | unknown   (definitions in CONTRIBUTING.md)
+#   source:   verified -> what you ran or read, and when (command + date, file + address, photo/grant URL)
+#             inferred -> what you inferred it from
+#             unknown  -> what would settle it
+# Hex values are quoted strings so YAML does not turn them into numbers.
+# Worked example: devices/hyperx-cloud-iii-wireless/device.yaml
+
+# Marketing name, as on the box.
+name: Example Headset Pro Wireless
+# Brand that sells it.
+vendor: Example
+# Design house / ODM if known (PCB silkscreen, firmware strings). Optional.
+oem: Example OEM Ltd.
+# FCC ID(s) from the headset and receiver labels or manual. Optional.
+fcc_id: 2ABCD-EX01 (headset), 2ABCD-EX01D (receiver)
+# platforms/<family> folder if the MCU/SoC + bootloader family is shared with other devices. Optional.
+platform: example-family
+
+# One entry per USB identity you have seen or read: wired app, bootloader, receiver, receiver bootloader,
+# base station, base station bootloader. Bluetooth identities go in README.md.
+usb:
+  # application | bootloader | receiver-application | receiver-bootloader | base-station-application | base-station-bootloader
+  - role: receiver-application
+    # VID:PID in lower case ("03f0:05b7"), also when Windows shows VID_03F0&PID_05B7.
+    vid_pid: "0000:0000"
+    # bcdDevice as "0xXXXX": lsusb -v "41.09" -> "0x4109"; Windows REV_4109 -> "0x4109".
+    bcd_device: "0x0100"
+    # iManufacturer and iProduct strings, exactly as reported (never iSerial).
+    manufacturer: Example
+    product: Example Headset Wireless
+    # Firmware version this identity reports (vendor app, bcdDevice, or a version query). Optional.
+    firmware_version: v0.0.0
+    # Report descriptor size per interface number from 0 (0 for a non-HID interface such as USB Audio).
+    report_descriptor_lengths: [0, 0, 0, 0]
+    evidence: verified
+    source: lsusb -v on a real unit, YYYY-MM-DD
+
+# Main microcontroller(s) or wireless audio SoC(s).
+mcu:
+  # headset | receiver | base-station
+  - component: headset
+    # Part number as decoded from the marking and datasheet.
+    part: Example Wireless Audio SoC
+    # Package text exactly as read. Optional.
+    marking: EXAMPLE 1234
+    evidence: inferred
+    source: what you read it from (photo URL, firmware vector table, updater strings)
+
+# Dedicated audio codec, DAC, ADC, DSP, or amplifier chips (if separate from the main MCU/SoC). Optional.
+audio:
+  - component: headset
+    part: Example Codec
+    marking: EX 0000
+    evidence: unknown
+    source: what would settle it (teardown photo, I2C/I2S register writes in firmware)
+
+# Official firmware files. Never commit the files themselves.
+firmware:
+  # Optional: headset | receiver | base-station
+  - component: receiver
+    # Version as the vendor names it.
+    version: v0.0.0
+    # File name only.
+    file: example_firmware.bin
+    # sha256sum of that file (lower case).
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+    # Official page or file URL you downloaded the outermost package from.
+    url: https://example.com/support/downloads
+    # Path from the downloaded package to this file. Optional.
+    inside: Example_Updater.exe > payload.zip
+    evidence: verified
+    source: sha256sum of the extracted file, YYYY-MM-DD
+
+# Flash regions, addresses as 8-digit hex, end inclusive.
+flash_layout:
+  # Optional: headset | receiver | base-station
+  - component: headset
+    start: "0x00000000"
+    end: "0x00000FFF"
+    name: bootloader
+    # true = tools must never erase or write it (bootloader, pairing keys, acoustic calibration).
+    preserve: true
+    evidence: unknown
+    source: what would settle it (lowest address in the official image, read-back)
+
+# How firmware gets onto the device: the bootloader updates use.
+bootloader:
+  # Transport and command set, or a link to platforms/<family>/.
+  protocol: unknown transport
+  # How the device enters it (USB command, button chord at power-on, magic word, pads). Optional.
+  entry: unknown
+  evidence: unknown
+  source: what would settle it (updater decompilation, USB capture of an update)
+
+# Ways back to a working headset/receiver. Say whether each was actually tried.
+recovery:
+  - method: re-flash the official image with the official updater
+    evidence: unknown
+    source: not tried yet
+
+# Open-source firmware or tools that target this device or its MCU/protocol. Optional.
+related_firmware:
+  - name: Example project
+    url: https://example.com/project
+    note: what it covers for this device
+
+# Markdown files in this folder.
+docs:
+  - README.md

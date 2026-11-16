@@ -1,0 +1,27 @@
+# Never commit vendor firmware binaries, updater executables or build outputs (CI enforces this list)
+*.bin
+*.hex
+*.exe
+*.dll
+*.zip
+*.elf
+*.uf2
+*.ihx
+*.srec
+*.s19
+*.mot
+*.dfu
+*.7z
+*.rar
+*.msi
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
+*.asar
+*.node
+# Raw USB captures can contain keystrokes or audio from other devices on the bus
+*.pcap
+*.pcapng
+__pycache__/
+*.pyc

@@ -1,0 +1,8 @@
+# HP / HyperX Cloud III Wireless: hidraw access for the logged-in desktop user.
+# Numbered below 73 so systemd-logind's uaccess handling (71-/73-seat*.rules) sees the tag.
+#   03f0:05b7 2.4 GHz USB wireless receiver (CL007WA)
+#   03f0:06b7 wired USB-C headset (CL007)
+# Install: sudo cp 70-hyperx-cloud-iii-wireless.rules /etc/udev/rules.d/ && sudo udevadm control --reload
+
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03f0", ATTRS{idProduct}=="05b7", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03f0", ATTRS{idProduct}=="06b7", TAG+="uaccess"

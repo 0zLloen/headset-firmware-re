@@ -1,0 +1,70 @@
+# yaml-language-server: $schema=../../schema/device.schema.json
+# Structured summary of this folder. Details and evidence are in the files under `docs`.
+name: HyperX Cloud III Wireless
+vendor: HyperX (HP Inc.)
+fcc_id: B94-CL007 (headset, model CL007), B94-CL007WA (2.4 GHz USB receiver, model CL007WA)
+
+usb:
+  - role: application
+    vid_pid: "03f0:06b7"
+    bcd_device: "0x3109"
+    manufacturer: HP, Inc
+    product: HyperX Cloud III Wireless
+    firmware_version: v3.1.0.9
+    report_descriptor_lengths: [150]
+    evidence: verified
+    source: lsusb -v, /sys/bus/usb/devices/1-3, and /sys/class/hidraw/hidraw7/device/report_descriptor on a retail headset connected by USB-C cable, full-speed (12 Mb/s), self-powered (bmAttributes 0xc0), HID-only (no USB Audio interfaces), 2026-11-16; bcdDevice 31.09 maps to NGENUITY headset firmware version 3.1.0.9 (inferred)
+  - role: receiver-application
+    vid_pid: "03f0:05b7"
+    bcd_device: "0x4109"
+    manufacturer: HP, Inc
+    product: HyperX Cloud III Wireless
+    firmware_version: v4.1.0.9
+    report_descriptor_lengths: [0, 0, 0, 187]
+    evidence: verified
+    source: lsusb -v, /sys/bus/usb/devices/1-1, /proc/asound/card1, and /sys/class/hidraw/hidraw1/device/report_descriptor on a retail 2.4 GHz USB receiver, full-speed (12 Mb/s), bus-powered (bmAttributes 0x80), 2026-11-16; bcdDevice 41.09 maps to NGENUITY receiver firmware version 4.1.0.9 (inferred)
+  - role: receiver-application
+    vid_pid: "03f0:0c9d"
+    evidence: inferred
+    source: alternate HyperX Cloud III Wireless dongle PID tracked alongside 03f0:05b7 in HeyOkay/HaloBattery (docs/protocols.md) and nogenuity; not observed on this unit
+
+mcu:
+  - component: headset
+    part: Unknown 2.4 GHz wireless audio SoC / MCU (shares the same USB/HID firmware stack, EP 4 IN 0x84, and 0xFF13/0x000B descriptor blocks as the 03f0:05b7 receiver)
+    evidence: unknown
+    source: FCC internal photos for B94-CL007 or a physical earcup teardown and package marking check are needed to identify the exact SoC
+  - component: receiver
+    part: Unknown 2.4 GHz wireless USB audio + HID transceiver SoC
+    evidence: unknown
+    source: FCC internal photos for B94-CL007WA or a physical dongle teardown and package marking check are needed to identify the exact SoC
+
+bootloader:
+  protocol: Unknown (updates pushed by HyperX NGENUITY with both the 03f0:05b7 dongle and the 03f0:06b7 wired headset connected; both expose the identical 73-byte vendor HID collection 0xFF13:0x0001 with 61-byte Report IDs 0x06 Out / 0x07 In / 0x0A Out, 2-byte Report ID 0x0B In, and 61-byte Report ID 0x66 Out/In)
+  entry: Unknown
+  evidence: unknown
+  source: extract the HyperX NGENUITY MSIX/Appx package or capture a firmware update over usbmon/USBPcap to identify the bootloader entry command, USB PID(s), and image container format
+
+recovery:
+  - method: Official HyperX NGENUITY firmware update / recovery flow (requires Windows with both the 03f0:05b7 USB wireless dongle and the 03f0:06b7 headset connected via USB-C cable)
+    evidence: unknown
+    source: documented by HyperX Support; not yet exercised or captured on this unit
+
+related_firmware:
+  - name: HyperHeadset
+    url: https://github.com/LennardKittner/HyperHeadset
+    note: Rust CLI and tray utility for HyperX headsets; includes udev rules for 03f0:05b7 and implements the 0xFF13 / Report ID 0x66 status protocol
+  - name: HaloBattery
+    url: https://github.com/HeyOkay/HaloBattery
+    note: Documents the 62-byte Report ID 0x66 battery (0x89 / 0x0D) and charging state (0x8A / 0x0C) queries on vendor collection 0xFF13:0x0001 for 03f0:05b7
+  - name: HeadsetControl
+    url: https://github.com/Sapd/HeadsetControl
+    note: Open-source headset battery/sidetone control tool tracking HyperX Cloud III family protocols (see PR #348 and Issue #486)
+  - name: nogenuity
+    url: https://github.com/nogenuity/nogenuity
+    note: Open-source HyperX headset control project listing 03f0:05b7 under experimental devices
+
+docs:
+  - README.md
+  - usb-and-hid.md
+  - hardware-and-fcc.md
+  - re-scripts/README.md
