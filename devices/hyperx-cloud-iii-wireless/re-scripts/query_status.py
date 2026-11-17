@@ -47,12 +47,15 @@ READ_COMMANDS: List[Tuple[int, str]] = [
 ]
 
 UNSOLICITED_EVENTS: Dict[int, str] = {
+    0x02: "EVENT_AUTO_SHUTDOWN (0x02)",
     0x07: "EVENT_MIC_CONNECTED (0x07)",
+    0x08: "EVENT_SILENT_MODE / PLAYBACK_MUTE (0x08)",
     0x09: "EVENT_SIDETONE_ON (0x09)",
     0x0A: "EVENT_MIC_MUTE (0x0A)",
     0x0B: "EVENT_WIRELESS_STATUS (0x0B)",
     0x0C: "EVENT_CHARGING (0x0C)",
     0x0D: "EVENT_BATTERY (0x0D)",
+    0x0F: "EVENT_NOISE_GATE (0x0F)",
 }
 
 COLOR_NAMES: Dict[int, str] = {
@@ -140,11 +143,12 @@ def parse_66_response(resp: bytes) -> Parsed66Response:
         )
     elif cmd in (0x84, 0x09):
         summary = f"sidetone_on = {b2 == 1} (raw=0x{b2:02X})"
-    elif cmd == 0x85:
+    elif cmd in (0x85, 0x02):
         summary = f"auto_shutdown = {b2} min ({'never' if b2 == 0 else f'{b2} min'})"
     elif cmd in (0x86, 0x0A):
-        summary = f"mic_muted = {b2 == 1} (raw=0x{b2:02X})"
-    elif cmd == 0x87:
+        extra = f", byte[3]=0x{b3:02X}" if b3 != 0 else ""
+        summary = f"mic_muted = {b2 == 1} (raw=0x{b2:02X}{extra})"
+    elif cmd in (0x87, 0x08):
         summary = f"silent_mode (playback_muted) = {b2 == 1} (raw=0x{b2:02X})"
     elif cmd == 0x88:
         signed_vol = b2 - 256 if b2 >= 128 else b2
@@ -159,7 +163,7 @@ def parse_66_response(resp: bytes) -> Parsed66Response:
         summary = f"charging = {CHARGING_NAMES.get(b2, f'Unknown({b2})')}"
     elif cmd in (0x8C, 0x07):
         summary = f"mic_connected = {b2 == 1} (raw=0x{b2:02X})"
-    elif cmd == 0x8D:
+    elif cmd in (0x8D, 0x0F):
         summary = f"noise_gate_on = {b2 == 1} (raw=0x{b2:02X})"
     elif cmd == 0x8F:
         summary = f"product_color = {COLOR_NAMES.get(b2, f'Unknown({b2})')}"

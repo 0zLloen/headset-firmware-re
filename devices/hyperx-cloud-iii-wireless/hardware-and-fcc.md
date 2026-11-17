@@ -21,7 +21,7 @@ The HyperX Cloud III Wireless system is split across two FCC equipment authoriza
 | :--- | :--- | :--- | :--- | :--- |
 | Power button | Left earcup | Press and hold to power on/off; short press announcements/status | **Verified** | HyperX Cloud III Wireless user manual |
 | Mic Mute / Sidetone button | Left earcup | Short press toggles microphone mute (and Mute LED); **press and hold for 3 seconds** toggles microphone monitoring (sidetone) locally in firmware without host software | **Verified** | HyperX Cloud III Wireless user manual |
-| Volume wheel | Right earcup | Endless rotary encoder; emits Consumer Control (`0x0C:0x01`, Report ID `0x0C`) Volume Increment (`0xE9`) / Decrement (`0xEA`) reports to the host | **Inferred** | Manual + verified Report ID `0x0C` descriptor usages `0xE9`/`0xEA` |
+| Volume wheel | Right earcup | Endless rotary encoder; emits Consumer Control (`0x0C:0x01`, Report ID `0x0C`) Volume Increment (`0c 01` → `0c 00` every 4 ms) / Decrement (`0c 02` → `0c 00` every 4 ms) reports to the host | **Verified** | Live capture via `re-scripts/listen_events.py` on `/dev/hidraw1`, 2026-11-17 |
 | USB-C port | Left earcup | Battery charging and wired firmware update connection | **Verified** | HyperX Cloud III Wireless user manual |
 
 ---

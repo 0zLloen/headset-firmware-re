@@ -161,11 +161,19 @@ class TestQueryStatusSafetyAndParsing(unittest.TestCase):
 
 class TestListenEventsDecoding(unittest.TestCase):
     def test_decode_unsolicited_0x66_events(self) -> None:
-        ev_mute = bytes([0x66, 0x0A, 0x01]) + bytes(59)
-        self.assertIn("EVENT_MIC_MUTE (0x0A): mic_muted = True", lmod.decode_input_report(ev_mute))
+        ev_mute = bytes([0x66, 0x0A, 0x01, 0x01]) + bytes(58)
+        self.assertIn("EVENT_MIC_MUTE (0x0A): mic_muted = True (raw=0x01, byte[3]=0x01)", lmod.decode_input_report(ev_mute))
 
         ev_batt = bytes([0x66, 0x0D, 0x10, 0x45, 100]) + bytes(57)
         self.assertIn("battery = 100% (voltage=4165 mV / 0x1045)", lmod.decode_input_report(ev_batt))
+
+        # 6-packet power-off burst verified on 03f0:05b7: 0x0B, 0x02, 0x0D, 0x08, 0x07, 0x0F
+        self.assertIn("EVENT_WIRELESS_STATUS (0x0B): wireless_connected = False", lmod.decode_input_report(bytes([0x66, 0x0B, 0x00]) + bytes(59)))
+        self.assertIn("EVENT_AUTO_SHUTDOWN (0x02): auto_shutdown = 0 min", lmod.decode_input_report(bytes([0x66, 0x02, 0x00]) + bytes(59)))
+        self.assertIn("EVENT_BATTERY (0x0D): battery = 0%", lmod.decode_input_report(bytes([0x66, 0x0D, 0x00]) + bytes(59)))
+        self.assertIn("EVENT_SILENT_MODE / PLAYBACK_MUTE (0x08): silent_mode (playback_muted) = True", lmod.decode_input_report(bytes([0x66, 0x08, 0x01]) + bytes(59)))
+        self.assertIn("EVENT_MIC_CONNECTED (0x07): mic_connected = False", lmod.decode_input_report(bytes([0x66, 0x07, 0x00]) + bytes(59)))
+        self.assertIn("EVENT_NOISE_GATE (0x0F): noise_gate_on = False", lmod.decode_input_report(bytes([0x66, 0x0F, 0x00]) + bytes(59)))
 
     def test_decode_consumer_and_telephony_reports(self) -> None:
         self.assertIn("Volume Increment (0xE9)", lmod.decode_input_report(bytes([0x0C, 0x01])))

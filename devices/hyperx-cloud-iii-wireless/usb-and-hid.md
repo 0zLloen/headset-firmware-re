@@ -123,20 +123,37 @@ All 13 read-only query commands (`0x81`..`0x8F`) below were **Verified** on a re
 | Feature / Property | Read Cmd (`buf[1]`) | Unsolicited Event (`buf[1]`) | Set Cmd (`buf[1]`) | Verified Response on `03f0:05b7` & `03f0:06b7` (`buf[2..]`) | Evidence (Read / Set) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Device identity & headset firmware version** | `0x81` (`129`) | — | — | • Headset ON (`03f0:05b7` receiver): `buf[2..4]` = `b7 08` (`0x08B7`, internal `"Cloud 3 Wireless Atlas headset"` PID in `NGenuity2Helper.exe`), `buf[4..6]` = `f0 03` (`0x03F0`), `buf[6..8]` = `09 31` (`0x3109` = **`v3.1.0.9`**), `buf[8]` = `0x20` (`32`), `buf[9..41]` = `"HP, IncHyperX Cloud III Wireless"`<br>• Wired USB-C (`03f0:06b7`): identical except `buf[2..4]` = `b7 06` (`0x06B7`)<br>• Headset OFF (`03f0:05b7` receiver): `66 81 00 00...` (`vid_pid=0000:0000`, `headset_fw=0x0000`, `len=0`) | **Verified** (2026-11-17) |
-| **Wireless link state** | `0x82` (`130`) | `0x0B` (`11`) | — | `66 82 01 00...` (`buf[2] = 0x01` when headset is on and linked; `0x00` when headset is powered off) | **Verified** (Read, On & Off) / **Inferred** (Event) |
-| **SIRK / Pairing key** | `0x83` (`131`) | — | **`0x1E` (`30`)** | **Transport-asymmetric**:<br>• On `03f0:05b7` (receiver, headset on or off): `buf[2..18]` is all `0x00` (`0/16` non-zero bytes).<br>• On `03f0:06b7` (wired headset): `buf[2..12]` is `0x00`, and **`buf[12..18]` holds a 6-byte non-zero key/RF address** (redacted).<br>• Set `0x1E`: **DANGEROUS** — resets/overwrites SIRK; never send! | **Verified** (Read, 2026-11-17) / **Inferred** (Set `0x1E`) |
-| **Sidetone (mic monitoring) on/off** | `0x84` (`132`) | `0x09` (`9`) | `0x01` (`1`) | `66 84 00 00...` (`buf[2] = 0x00` off, `0x01` on) | **Verified** (Read) / **Inferred** (Set/Event) |
-| **Automatic shutdown timer** | `0x85` (`133`) | — | `0x02` (`2`) | `66 85 0a 00...` (`buf[2] = 0x0A` = `10` minutes when headset is on; `0x00` when headset is off; valid settings `0` = never, `10`, `20`, `30`) | **Verified** (Read, On & Off) / **Inferred** (Set) |
-| **Microphone mute** | `0x86` (`134`) | `0x0A` (`10`) | `0x03` (`3`) | `66 86 00 00...` (`buf[2] = 0x00` unmuted, `0x01` muted) | **Verified** (Read) / **Inferred** (Set/Event) |
-| **Playback mute (silent mode)** | `0x87` (`135`) | — | `0x04` (`4`) | `66 87 00 00...` (`buf[2] = 0x00` unmuted, `0x01` silent) | **Verified** (Read) / **Inferred** (Set) |
-| **Sidetone volume level** | `0x88` (`136`) | — | `0x05` (`5`) | `66 88 00 00...` (`buf[2] = 0x00` = `+0` default; signed int8 `-5..+5`, `0xFB..0x05`) | **Verified** (Read) / **Inferred** (Set) |
-| **Battery level & cell voltage** | `0x89` (`137`) | `0x0D` (`13`) | — | • `66 89 10 37 55...` (`85%`, `4151 mV` / `0x1037` charging)<br>• `66 89 10 3d 56...` (`86%`, `4157 mV` / `0x103D` charging)<br>• `66 89 10 45 64...` (`100%`, `4165 mV` / `0x1045` unplugged)<br>• `66 89 00 00 00...` (`0%`, `0 mV` / `0x0000` when headset is off)<br>`buf[2..4]` = **uint16 BE battery voltage in mV**; `buf[4]` = percentage (`0..100`) | **Verified** (Read, 4 states, 2026-11-17) / **Inferred** (Event) |
-| **Charging status** | `0x8A` (`138`) | `0x0C` (`12`) | — | • `66 8a 01 00...` (`buf[2] = 0x01` Charging while USB-C is connected)<br>• `66 8a 00 00...` (`buf[2] = 0x00` NotCharging when unplugged or headset off; `2` full, `3+` error) | **Verified** (Read, Charging & NotCharging) / **Inferred** (Event) |
-| **Mic boom connected** | `0x8C` (`140`) | `0x07` (`7`) | — | `66 8c 01 00...` (`buf[2] = 0x01` connected when headset is on; `0x00` when headset is off) | **Verified** (Read, On & Off, 2026-11-17) / **Inferred** (Event) |
-| **Noise gate** | `0x8D` (`141`) | — | `0x0F` (`15`) | `66 8d 01 00...` (`buf[2] = 0x01` active when headset is on; `0x00` when headset is off) | **Verified** (Read, On & Off, 2026-11-17) / **Inferred** (Set) |
-| **Product color** | `0x8F` (`143`) | — | — | `66 8f 02 00...` (`buf[2] = 0x02` = Black/Red; `0` = Black/Black, `1` = White/White; **returns `0x02` on `03f0:05b7` even when the headset is powered off**) | **Verified** (Read, On & Off, 2026-11-17) |
+| **Wireless link state** | `0x82` (`130`) | `0x0B` (`11`) | — | `66 82 01 00...` (`buf[2] = 0x01` when headset is on and linked; `0x00` when headset is powered off; unsolicited `66 0b 00 00...` on power-off) | **Verified** (Read & Event, 2026-11-17) |
+| **SIRK / Pairing key** | `0x83` (`131`) | — | **`0x1E` (`30`)** | **Transport-asymmetric**:<br>• On `03f0:05b7` (receiver, headset on or off): `buf[2..18]` is all `0x00` (`0/16` non-zero bytes).<br>• On `03f0:06b7` (wired headset): `buf[2..12]` is `0x00`, and **`buf[12..18]` holds a 6-byte non-zero key/RF address** (redacted).<br>• Set `0x1E`: **DANGEROUS** — resets/overwrites SIRK (`CMDHSCloud3WirelessResetSirk`); never send! | **Verified** (Read & NGENUITY class, 2026-11-17) |
+| **Sidetone (mic monitoring) on/off** | `0x84` (`132`) | `0x09` (`9`) | `0x01` (`1`) | `66 84 00 00...` (`buf[2] = 0x00` off, `0x01` on; `CMDHSCloud3WirelessGetSidetone` / `SetSidetone`) | **Verified** (Read) / **Inferred** (Set/Event) |
+| **Automatic shutdown timer** | `0x85` (`133`) | `0x02` (`2`) | `0x02` (`2`) | `66 85 0a 00...` (`buf[2] = 0x0A` = `10` minutes when headset is on; `0x00` when headset is off; emits unsolicited `66 02 00 00...` on power-off; `CMDHSCloud3WirelessGetPowerAutoOff` / `SetPowerAutoOff`) | **Verified** (Read & Event, 2026-11-17) / **Inferred** (Set) |
+| **Microphone mute** | `0x86` (`134`) | `0x0A` (`10`) | `0x03` (`3`) | • Read `0x86`: `66 86 00 00...` (`buf[2] = 0x00` unmuted, `0x01` muted)<br>• Unsolicited `0x0A` on physical mute button press: `66 0a 01 01 00...` (muted) and `66 0a 00 01 00...` (unmuted), where `buf[3] = 0x01` indicates physical button / boom present (`CMDHSCloud3WirelessGetMicMuteState` / `SetMicMuteState`) | **Verified** (Read & Event, 2026-11-17) / **Inferred** (Set) |
+| **Playback mute (silent mode)** | `0x87` (`135`) | `0x08` (`8`) | `0x04` (`4`) | • Read `0x87`: `66 87 00 00...` (`buf[2] = 0x00` unmuted)<br>• Unsolicited `0x08` on headset power-off: `66 08 01 00...` (`buf[2] = 0x01` playback muted while disconnected; `CMDHSCloud3WirelessGetPlaybackMuteState` / `SetPlaybackMuteState`) | **Verified** (Read & Event, 2026-11-17) / **Inferred** (Set) |
+| **Sidetone volume level** | `0x88` (`136`) | — | `0x05` (`5`) | `66 88 00 00...` (`buf[2] = 0x00` = `+0` default; signed int8 `-5..+5`, `0xFB..0x05`; `CMDHSCloud3WirelessGetSidetoneVolume` / `SetSidetoneVolume`) | **Verified** (Read) / **Inferred** (Set) |
+| **Battery level & cell voltage** | `0x89` (`137`) | `0x0D` (`13`) | — | • `66 89 10 37 55...` (`85%`, `4151 mV` / `0x1037` charging)<br>• `66 89 10 3d 56...` (`86%`, `4157 mV` / `0x103D` charging)<br>• `66 89 10 45 64...` (`100%`, `4165 mV` / `0x1045` unplugged)<br>• `66 89 00 00 00...` (`0%`, `0 mV` when headset is off; emits unsolicited `66 0d 00 00...` on power-off) | **Verified** (Read & Event, 2026-11-17) |
+| **Charging status** | `0x8A` (`138`) | `0x0C` (`12`) | — | • `66 8a 01 00...` (`buf[2] = 0x01` Charging while USB-C is connected)<br>• `66 8a 00 00...` (`buf[2] = 0x00` NotCharging when unplugged or headset off; `2` full, `3+` error) | **Verified** (Read) / **Inferred** (Event) |
+| **Mic boom connected** | `0x8C` (`140`) | `0x07` (`7`) | — | `66 8c 01 00...` (`buf[2] = 0x01` connected when headset is on; `0x00` when headset is off; emits unsolicited `66 07 00 00...` on power-off; `CMDHSCloud2CoreWirelessGetMicBoomPlugState`) | **Verified** (Read & Event, 2026-11-17) |
+| **Noise gate** | `0x8D` (`141`) | `0x0F` (`15`) | `0x0F` (`15`) | `66 8d 01 00...` (`buf[2] = 0x01` active when headset is on; `0x00` when headset is off; emits unsolicited `66 0f 00 00...` on power-off; `CMDHSCloud2CoreWirelessGetNoiseGateState` / `SetNoiseGateState`) | **Verified** (Read & Event, 2026-11-17) / **Inferred** (Set) |
+| **Product color** | `0x8F` (`143`) | — | — | `66 8f 02 00...` (`buf[2] = 0x02` = Black/Red; `0` = Black/Black, `1` = White/White; **returns `0x02` on `03f0:05b7` even when the headset is powered off**; `CMDHSCloud3WirelessGetColor`) | **Verified** (Read, On & Off, 2026-11-17) |
 
-### 4.3 Headset-Off Receiver Shadow-Table Behavior (`03f0:05b7`)
+### 4.3 Verified Live Event Stream (`listen_events.py` on `/dev/hidraw1`)
+
+Passively monitoring `/dev/hidraw1` (`03f0:05b7`) with [`re-scripts/listen_events.py`](re-scripts/listen_events.py) (**Verified**, 2026-11-17) confirms the following live wire behavior:
+1. **Consumer Control Volume Wheel (`Report ID 0x0C`, 2 bytes)**:
+   - Each upward detent emits two pairs of press/release reports spaced exactly `4.0 ms` apart (`bInterval = 4` ms): `0c 01` (`Volume Increment 0xE9`) → `+4 ms` → `0c 00` (`Release`) → `+4 ms` → `0c 01` → `+4 ms` → `0c 00`.
+   - Each downward detent emits two pairs of `0c 02` (`Volume Decrement 0xEA`) → `+4 ms` → `0c 00` (`Release`).
+2. **Physical Mic Mute Button (`Report ID 0x66`, Event `0x0A`, 62 bytes)**:
+   - Pressing the left-earcup mute button emits `66 0a 01 01 00...` (`mic_muted = True`, `byte[3] = 0x01`); pressing it again emits `66 0a 00 01 00...` (`mic_muted = False`, `byte[3] = 0x01`).
+3. **Headset Power-Off 6-Packet Disconnect Burst (`Report ID 0x66`, 62 bytes × 6)**:
+   - When the headset powers off, the `03f0:05b7` receiver emits a deterministic 6-report burst spaced `4.0 ms` apart (`20 ms` total):
+     1. `+0 ms`: `66 0b 00 00...` (`0x0B` `EVENT_WIRELESS_STATUS` → `wireless_connected = False`)
+     2. `+4 ms`: `66 02 00 00...` (`0x02` `EVENT_AUTO_SHUTDOWN` → `auto_shutdown = 0 min`)
+     3. `+8 ms`: `66 0d 00 00...` (`0x0D` `EVENT_BATTERY` → `battery = 0%`)
+     4. `+12 ms`: `66 08 01 00...` (`0x08` `EVENT_SILENT_MODE / PLAYBACK_MUTE` → `silent_mode = True`)
+     5. `+16 ms`: `66 07 00 00...` (`0x07` `EVENT_MIC_CONNECTED` → `mic_connected = False`)
+     6. `+20 ms`: `66 0f 00 00...` (`0x0F` `EVENT_NOISE_GATE` → `noise_gate_on = False`)
+
+### 4.4 Headset-Off Receiver Shadow-Table Behavior (`03f0:05b7`)
 
 When the wireless headset is powered off and unplugged from USB-C, querying `/dev/hidraw1` (`03f0:05b7`) with [`re-scripts/query_status.py`](re-scripts/query_status.py) does **not** time out (**Verified**, 2026-11-17):
 - The receiver answers all 13 `0x66 0x81..0x8F` queries in `3.9`–`5.3 ms` from a local RAM table.
@@ -144,7 +161,7 @@ When the wireless headset is powered off and unplugged from USB-C, querying `/de
 - Query **`0x8F` (`GET_PRODUCT_COLOR`) still returns `66 8f 02 00...` (`0x02` = Black/Red)**, proving that the product color code is stored persistently in the receiver's own NVDM flash (or initialized locally at receiver boot) rather than fetched live from the headset.
 - Passively monitoring `/dev/hidraw1` with [`re-scripts/listen_events.py`](re-scripts/listen_events.py) confirms that the receiver emits **zero background noise packets** while idle (`0` unsolicited reports over `4.0 s`); input reports on `EP 4 IN` (`0x84`) are strictly event-driven.
 
-### 4.4 Purpose of Report IDs `0x06`, `0x07`, `0x0A`, and `0x0B` on `0xFF13:0x0001` (Airoha RACE over USB HID)
+### 4.5 Purpose of Report IDs `0x06`, `0x07`, `0x0A`, and `0x0B` on `0xFF13:0x0001` (Airoha RACE over USB HID)
 
 Inspection of `NGenuity2Helper.exe` (`Cloud3WirelessUpdater.cs`) and `AirohaHidCoreLib.dll` from `HyperX_NGENUITY_Installer_2.38.0.0.exe` (**Verified**, 2026-11-17; see [`firmware-updater.md`](firmware-updater.md)) settles the role of the four additional vendor report declarations in the 73-byte `0xFF13:0x0001` collection:
 - **Report ID `0x06` (61 B Output, 62 B wire) & Report ID `0x07` (61 B Input, 62 B wire)**: Local **Airoha RACE (Remote Access Command Engine) over USB HID** command/response channel used by `AirohaHidCoreLib.dll` (`[UsbHidPhy]`) to query FOTA state, erase/program SPI flash partitions, verify SHA-256 digests, and commit firmware updates on `03f0:05b7`/`03f0:0c9d` and `03f0:06b7`/`03f0:0e9d`.
