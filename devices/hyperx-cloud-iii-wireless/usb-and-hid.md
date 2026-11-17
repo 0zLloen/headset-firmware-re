@@ -6,14 +6,14 @@ Findings use the evidence labels defined in [`CONTRIBUTING.md`](../../CONTRIBUTI
 
 ## 1. USB Device & Configuration Summary (`03f0:05b7` Receiver vs. `03f0:06b7` Wired Headset)
 
-All fields in the table below are **Verified** on a retail unit via `lsusb -v`, `/sys/bus/usb/devices/1-1/*` (receiver), and `/sys/bus/usb/devices/1-3/*` (headset over USB-C cable) on `2026-11-16` unless marked otherwise:
+All fields in the table below are **Verified** on a retail unit via `lsusb -v`, `/sys/bus/usb/devices/1-1/*` (receiver), `/sys/bus/usb/devices/1-3/*` (headset over USB-C cable), and `re-scripts/query_status.py` on `2026-11-16/17` unless marked otherwise:
 
 | Field | 2.4 GHz USB Receiver (`03f0:05b7`) | Wired USB-C Headset (`03f0:06b7`) | Evidence | Notes / Source |
 | :--- | :--- | :--- | :--- | :--- |
-| `idVendor` : `idProduct` | `03f0:05b7` | `03f0:06b7` | **Verified** | `lsusb`, 2026-11-16 (alternate receiver PID `03f0:0c9d` is **Inferred** from `HaloBattery`/`nogenuity`) |
+| `idVendor` : `idProduct` | `03f0:05b7` | `03f0:06b7` | **Verified** | `lsusb`, 2026-11-16 (alternate PIDs `03f0:0c9d` receiver and `03f0:0e9d` headset are **Inferred** from `HyperHeadset`/`nogenuity`) |
 | `bcdUSB` / Speed | `2.00` / `12 Mb/s` (Full-Speed) | `2.00` / `12 Mb/s` (Full-Speed) | **Verified** | `bMaxPacketSize0 = 64` on both, `lsusb -v`, 2026-11-16 |
 | `bcdDevice` | `41.09` (`0x4109`) | `31.09` (`0x3109`) | **Verified** | `/sys/bus/usb/devices/1-1/bcdDevice` (`4109`) and `1-3/bcdDevice` (`3109`), 2026-11-16 |
-| Firmware version | `v4.1.0.9` | `v3.1.0.9` | **Inferred** | Derived from `bcdDevice` `41.09` (dongle) and `31.09` (headset), matching HyperX NGENUITY's paired `4.1.0.9` / `3.1.0.9` release numbers |
+| Firmware version | `v4.1.0.9` (receiver) / reports paired headset `v3.1.0.9` (`0x3109`) on `0x66 0x81` | `v3.1.0.9` (`0x3109` in both USB `bcdDevice` and `0x66 0x81`) | **Verified** | `bcdDevice` `0x4109` / `0x3109` + `0x66 0x81` identity response (`09 31` at `resp[6..8]`), 2026-11-17 |
 | `iManufacturer` (index 1) | `"HP, Inc"` | `"HP, Inc"` | **Verified** | `lsusb -v`, 2026-11-16 |
 | `iProduct` (index 2) | `"HyperX Cloud III Wireless"` | `"HyperX Cloud III Wireless"` | **Verified** | `lsusb -v`, 2026-11-16 |
 | `iSerial` (index 3) | 16 ASCII zeros (`<redacted>`) | 16 ASCII zeros (`<redacted>`) | **Verified** | Both devices report a fixed 16-zero placeholder string rather than a unique serial, 2026-11-16 |
@@ -105,32 +105,47 @@ Comparing the two descriptors (**Verified** with [`re-scripts/inspect_usb_hid.py
 | **Telephony** | `110..186` (77 B) | `73..149` (77 B) | `0x000B` / `0x0005` | `0x05` (`5`) | Input (`0x81 ...`) | 1 B (1 + 1 + 5 + 1 bits) | 2 B | Bit 0: Hook Switch (`0x20`, `Abs,NoPref`); Bit 1: Phone Mute (`0x2F`, `Rel`); Bits `2..6`: Redial (`0x24`), Flash (`0x21`), Line Busy Tone (`0x97`), Line (`0x2A`), Speed Dial (`0x50`) (`Rel`); Bit 7: Programmable Button (`0x07` / Button 1 `0x09:0x01`, `Abs`) | **Verified** |
 | **Telephony** | `110..186` | `73..149` | `0x000B` / `0x0005` (LEDs `0x0008`) | `0x05` (`5`) | Output (`0x91 ...`) | 1 B (6 bits + 2 bits) | 2 B | Bits `0..5` (Usage Page `0x08` LEDs): Off-Hook (`0x17`), Mute (`0x09`), Ring (`0x18`), Hold (`0x20`), Microphone (`0x21`), On-Line (`0x2A`) (`Data,Var,Abs,NoPref`); Bits `6..7`: Constant padding (`0x91 0x01`) | **Verified** |
 
-Because neither device declares an Interrupt OUT endpoint, host `write()` calls to `/dev/hidrawN` (or `HidD_SetOutputReport` on Windows) travel over the default control pipe (`EP0`) as `SET_REPORT (Output)` transfers.
+Because neither device declares an Interrupt OUT endpoint, host `write()` calls to `/dev/hidrawN` travel over the default control pipe (`EP0`) as `SET_REPORT (Output)` transfers.
 
 ---
 
-## 4. Vendor Collection `0xFF13:0x0001` — Report ID `0x66` Protocol
+## 4. Vendor Collection `0xFF13:0x0001` — The `66` Command Set (`Report ID 0x66`)
 
-The commands below are **Inferred** from open-source implementations ([`LennardKittner/HyperHeadset`](https://github.com/LennardKittner/HyperHeadset), [`HeyOkay/HaloBattery`](https://github.com/HeyOkay/HaloBattery), and [`mihajlo-kuzmanoski/NightfurY-Peripherals`](https://github.com/mihajlo-kuzmanoski/NightfurY-Peripherals)). They have **not** been transmitted to this hardware unit yet.
+All 13 read-only query commands (`0x81`..`0x8F`) below were **Verified** on a retail `03f0:05b7` receiver (`/dev/hidraw1`) and `03f0:06b7` wired USB-C headset (`/dev/hidraw7`) via [`re-scripts/query_status.py`](re-scripts/query_status.py) on `2026-11-17`. Unsolicited event IDs (`0x07`, `0x09`..`0x0D`) and write/set opcodes (`0x01`..`0x05`, `0x0F`, `0x1E`) are **Inferred** from [`LennardKittner/HyperHeadset`](https://github.com/LennardKittner/HyperHeadset) (`src/devices/cloud_iii_wireless.rs` and `src/devices/cloud_ii_core_wireless.rs`) and [`esdedev/nogenuity`](https://github.com/esdedev/nogenuity) (`docs/PROTOCOL.md` and `src/devices/wireless.rs`).
 
 ### 4.1 Frame Layout
 
-- **Request (Host → Receiver/Headset)**: 62-byte Output report with Report ID `0x66` (`buf[0] = 0x66`, `buf[1] = <cmd>`, `buf[2..61] = 0x00` or command parameters). This matches the verified descriptor item for Report ID `0x66` (`1` report-ID byte + `61` data bytes = `62` bytes).
-- **Response / Event (Receiver/Headset → Host)**: 62-byte Input report on Interrupt IN endpoint `0x84` with Report ID `0x66` (`buf[0] = 0x66`, `buf[1] = <cmd_or_event>`, `buf[2..61] = payload`).
+- **Request (Host → Receiver/Headset)**: 62-byte Output report with Report ID `0x66` (`buf[0] = 0x66`, `buf[1] = <cmd>`, `buf[2] = <value_or_0x00>`, `buf[3..61] = 0x00`). Read-only queries have bit 7 set (`0x80`..`0x8F`).
+- **Response / Unsolicited Event (Receiver/Headset → Host)**: 62-byte Input report on Interrupt IN endpoint `0x84` with Report ID `0x66` (`buf[0] = 0x66`, `buf[1] = <cmd_echo_or_event_id>`, `buf[2..61] = payload`), arriving in `2.8`–`7.9 ms` (**Verified**, 2026-11-17).
 
-### 4.2 Known Status Commands & Events (`Inferred`, untested on this unit)
+### 4.2 Complete `0x66` Command & Event Table
 
-| `buf[0]` | `buf[1]` | Direction | Meaning & Payload Layout | Evidence | Source |
+| Feature / Property | Read Cmd (`buf[1]`) | Unsolicited Event (`buf[1]`) | Set Cmd (`buf[1]`) | Verified Response on `03f0:05b7` & `03f0:06b7` (`buf[2..]`) | Evidence (Read / Set) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `0x66` | `0x89` | Out (Query) / In (Reply) | **Battery level query/reply**: `buf[4]` holds battery percentage (`0`–`100`) when `buf[2]` or `buf[3]` is non-zero (when the headset is powered off or unlinked, `buf[2]` and `buf[3]` are `0` or `buf[4] > 100`). | **Inferred** | `HeyOkay/HaloBattery` (`docs/protocols.md`), `LennardKittner/HyperHeadset`, `NightfurY-Peripherals` |
-| `0x66` | `0x0D` | In (Event) | **Unsolicited battery level event**: same layout as `0x89` reply (`buf[4]` = battery percentage). | **Inferred** | `HeyOkay/HaloBattery` (`docs/protocols.md`) |
-| `0x66` | `0x8A` | Out (Query) / In (Reply) | **Charging status query/reply**: `buf[2]` = `0x00` (not charging), `0x01` (charging), `0x02` (fully charged). | **Inferred** | `HeyOkay/HaloBattery` (`docs/protocols.md`) |
-| `0x66` | `0x0C` | In (Event) | **Unsolicited charging status event**: `buf[2]` = `0x00` (not charging), `0x01` (charging), `0x02` (fully charged). | **Inferred** | `HeyOkay/HaloBattery` (`docs/protocols.md`) |
+| **Device identity & headset firmware version** | `0x81` (`129`) | — | — | • Headset ON (`03f0:05b7` receiver): `buf[2..4]` = `b7 08` (`0x08B7`, internal `"Cloud 3 Wireless Atlas headset"` PID in `NGenuity2Helper.exe`), `buf[4..6]` = `f0 03` (`0x03F0`), `buf[6..8]` = `09 31` (`0x3109` = **`v3.1.0.9`**), `buf[8]` = `0x20` (`32`), `buf[9..41]` = `"HP, IncHyperX Cloud III Wireless"`<br>• Wired USB-C (`03f0:06b7`): identical except `buf[2..4]` = `b7 06` (`0x06B7`)<br>• Headset OFF (`03f0:05b7` receiver): `66 81 00 00...` (`vid_pid=0000:0000`, `headset_fw=0x0000`, `len=0`) | **Verified** (2026-11-17) |
+| **Wireless link state** | `0x82` (`130`) | `0x0B` (`11`) | — | `66 82 01 00...` (`buf[2] = 0x01` when headset is on and linked; `0x00` when headset is powered off) | **Verified** (Read, On & Off) / **Inferred** (Event) |
+| **SIRK / Pairing key** | `0x83` (`131`) | — | **`0x1E` (`30`)** | **Transport-asymmetric**:<br>• On `03f0:05b7` (receiver, headset on or off): `buf[2..18]` is all `0x00` (`0/16` non-zero bytes).<br>• On `03f0:06b7` (wired headset): `buf[2..12]` is `0x00`, and **`buf[12..18]` holds a 6-byte non-zero key/RF address** (redacted).<br>• Set `0x1E`: **DANGEROUS** — resets/overwrites SIRK; never send! | **Verified** (Read, 2026-11-17) / **Inferred** (Set `0x1E`) |
+| **Sidetone (mic monitoring) on/off** | `0x84` (`132`) | `0x09` (`9`) | `0x01` (`1`) | `66 84 00 00...` (`buf[2] = 0x00` off, `0x01` on) | **Verified** (Read) / **Inferred** (Set/Event) |
+| **Automatic shutdown timer** | `0x85` (`133`) | — | `0x02` (`2`) | `66 85 0a 00...` (`buf[2] = 0x0A` = `10` minutes when headset is on; `0x00` when headset is off; valid settings `0` = never, `10`, `20`, `30`) | **Verified** (Read, On & Off) / **Inferred** (Set) |
+| **Microphone mute** | `0x86` (`134`) | `0x0A` (`10`) | `0x03` (`3`) | `66 86 00 00...` (`buf[2] = 0x00` unmuted, `0x01` muted) | **Verified** (Read) / **Inferred** (Set/Event) |
+| **Playback mute (silent mode)** | `0x87` (`135`) | — | `0x04` (`4`) | `66 87 00 00...` (`buf[2] = 0x00` unmuted, `0x01` silent) | **Verified** (Read) / **Inferred** (Set) |
+| **Sidetone volume level** | `0x88` (`136`) | — | `0x05` (`5`) | `66 88 00 00...` (`buf[2] = 0x00` = `+0` default; signed int8 `-5..+5`, `0xFB..0x05`) | **Verified** (Read) / **Inferred** (Set) |
+| **Battery level & cell voltage** | `0x89` (`137`) | `0x0D` (`13`) | — | • `66 89 10 37 55...` (`85%`, `4151 mV` / `0x1037` charging)<br>• `66 89 10 3d 56...` (`86%`, `4157 mV` / `0x103D` charging)<br>• `66 89 10 45 64...` (`100%`, `4165 mV` / `0x1045` unplugged)<br>• `66 89 00 00 00...` (`0%`, `0 mV` / `0x0000` when headset is off)<br>`buf[2..4]` = **uint16 BE battery voltage in mV**; `buf[4]` = percentage (`0..100`) | **Verified** (Read, 4 states, 2026-11-17) / **Inferred** (Event) |
+| **Charging status** | `0x8A` (`138`) | `0x0C` (`12`) | — | • `66 8a 01 00...` (`buf[2] = 0x01` Charging while USB-C is connected)<br>• `66 8a 00 00...` (`buf[2] = 0x00` NotCharging when unplugged or headset off; `2` full, `3+` error) | **Verified** (Read, Charging & NotCharging) / **Inferred** (Event) |
+| **Mic boom connected** | `0x8C` (`140`) | `0x07` (`7`) | — | `66 8c 01 00...` (`buf[2] = 0x01` connected when headset is on; `0x00` when headset is off) | **Verified** (Read, On & Off, 2026-11-17) / **Inferred** (Event) |
+| **Noise gate** | `0x8D` (`141`) | — | `0x0F` (`15`) | `66 8d 01 00...` (`buf[2] = 0x01` active when headset is on; `0x00` when headset is off) | **Verified** (Read, On & Off, 2026-11-17) / **Inferred** (Set) |
+| **Product color** | `0x8F` (`143`) | — | — | `66 8f 02 00...` (`buf[2] = 0x02` = Black/Red; `0` = Black/Black, `1` = White/White; **returns `0x02` on `03f0:05b7` even when the headset is powered off**) | **Verified** (Read, On & Off, 2026-11-17) |
 
-### 4.3 Unmapped Report IDs on `0xFF13:0x0001` (`Unknown`)
+### 4.3 Headset-Off Receiver Shadow-Table Behavior (`03f0:05b7`)
 
-On both `03f0:05b7` and `03f0:06b7`, the vendor collection `0xFF13:0x0001` also declares:
-- Report ID `0x06` (61 B Output, `Data,Var,Abs`) and Report ID `0x07` (61 B Input, `Data,Var,Abs`)
-- Report ID `0x0A` (61 B Output, `Data,Var,Abs,NoPref`) and Report ID `0x0B` (2 B Input, `Data,Var,Abs`)
+When the wireless headset is powered off and unplugged from USB-C, querying `/dev/hidraw1` (`03f0:05b7`) with [`re-scripts/query_status.py`](re-scripts/query_status.py) does **not** time out (**Verified**, 2026-11-17):
+- The receiver answers all 13 `0x66 0x81..0x8F` queries in `3.9`–`5.3 ms` from a local RAM table.
+- Queries `0x81` through `0x8D` (`GET_DEVICE_IDENTITY`, `GET_WIRELESS_STATUS`, `GET_SIRK`, `GET_SIDETONE_ON`, `GET_AUTO_SHUTDOWN`, `GET_MIC_MUTE`, `GET_SILENT_MODE`, `GET_SIDETONE_VOLUME`, `GET_BATTERY`, `GET_CHARGING`, `GET_MIC_CONNECTED`, `GET_NOISE_GATE`) all return zeroed payloads (`0x00`).
+- Query **`0x8F` (`GET_PRODUCT_COLOR`) still returns `66 8f 02 00...` (`0x02` = Black/Red)**, proving that the product color code is stored persistently in the receiver's own NVDM flash (or initialized locally at receiver boot) rather than fetched live from the headset.
+- Passively monitoring `/dev/hidraw1` with [`re-scripts/listen_events.py`](re-scripts/listen_events.py) confirms that the receiver emits **zero background noise packets** while idle (`0` unsolicited reports over `4.0 s`); input reports on `EP 4 IN` (`0x84`) are strictly event-driven.
 
-Because `03f0:06b7` (wired headset) is a single-interface HID device used by NGENUITY during wired firmware updates and exposes these exact same report IDs, Report IDs `0x06`/`0x07`/`0x0A`/`0x0B` (or a subcommand of `0x66`) very likely carry the firmware update / ISP frames (**Inferred**). Per [`CONTRIBUTING.md`](../../CONTRIBUTING.md#ground-rules) ground rule 4, never send arbitrary packets to Report IDs `0x06`, `0x0A`, or unknown `0x66` subcommands without first observing them in a passive capture of HyperX NGENUITY or decompiling the updater.
+### 4.4 Purpose of Report IDs `0x06`, `0x07`, `0x0A`, and `0x0B` on `0xFF13:0x0001` (Airoha RACE over USB HID)
+
+Inspection of `NGenuity2Helper.exe` (`Cloud3WirelessUpdater.cs`) and `AirohaHidCoreLib.dll` from `HyperX_NGENUITY_Installer_2.38.0.0.exe` (**Verified**, 2026-11-17; see [`firmware-updater.md`](firmware-updater.md)) settles the role of the four additional vendor report declarations in the 73-byte `0xFF13:0x0001` collection:
+- **Report ID `0x06` (61 B Output, 62 B wire) & Report ID `0x07` (61 B Input, 62 B wire)**: Local **Airoha RACE (Remote Access Command Engine) over USB HID** command/response channel used by `AirohaHidCoreLib.dll` (`[UsbHidPhy]`) to query FOTA state, erase/program SPI flash partitions, verify SHA-256 digests, and commit firmware updates on `03f0:05b7`/`03f0:0c9d` and `03f0:06b7`/`03f0:0e9d`.
+- **Report ID `0x0A` (61 B Output, 62 B wire) & Report ID `0x0B` (2 B Input, 3 B wire)**: Secondary Airoha RACE dongle-relay / notification channel (`check dongle relay HID recipient`).

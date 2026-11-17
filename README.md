@@ -17,14 +17,19 @@ headset-firmware-re/
     ├── _template/                             # Copy to devices/<vendor>-<model>/: README.md skeleton + device.yaml
     └── hyperx-cloud-iii-wireless/             # HyperX Cloud III Wireless (HP Inc., FCC IDs: B94-CL007 / B94-CL007WA)
         ├── README.md                          # Status, file list, and open questions
-        ├── device.yaml                        # Structured summary: USB IDs (03f0:06b7 & 03f0:05b7), FCC grants, HID
+        ├── device.yaml                        # Structured summary: USB IDs (03f0:06b7 & 03f0:05b7), Airoha AB1565 SoC, HID
         ├── usb-and-hid.md                     # Verified USB Audio Class 1.0 topology, 187 B & 150 B HID descriptors,
-        │                                      #   and inferred 0xFF13 / Report ID 0x66 status protocol
-        ├── hardware-and-fcc.md                # FCC grant specs (headset + USB-C receiver), controls, open hardware items
+        │                                      #   and the 0xFF13 / Report ID 0x66 command set
+        ├── firmware-updater.md                # Verified Airoha AB1565 FOTA package headers (03F005B7.bin / 03F006B7.bin),
+        │                                      #   flash partition tables, and RACE over USB HID (0x06/0x07) update flow
+        ├── hardware-and-fcc.md                # Verified Airoha AB1565 SoCs, FCC grant specs, controls, flash layout
         ├── re-scripts/
-        │   ├── README.md                      # Passive sysfs / offline HID descriptor inspection scripts
+        │   ├── README.md                      # Passive sysfs / read-only HID & FOTA inspection scripts
         │   ├── inspect_usb_hid.py             # Offline HID report descriptor decoder + passive Linux sysfs reader
-        │   └── test_inspect.py                # Offline unit tests for the 187 B & 150 B descriptors (runs in CI)
+        │   ├── query_status.py                # Read-only Report ID 0x66 (0x81..0x8F) status probe (refuses < 0x80 writes)
+        │   ├── listen_events.py               # Passive O_RDONLY listener for 0x66, 0x0C, 0x05, and 0x07/0x0B reports
+        │   ├── inspect_fota_package.py        # Offline Airoha AB1565 FOTA .bin header & SHA-256 verifier
+        │   └── test_inspect.py                # Offline unit tests for descriptors, safety guards, and FOTA headers (CI)
         └── udev/
             └── 70-hyperx-cloud-iii-wireless.rules
 ```
@@ -52,7 +57,7 @@ Reverse-engineered a headset, or want to? [`CONTRIBUTING.md`](CONTRIBUTING.md) w
      - **Inferred**: your interpretation of disassembly, decompilation, USB captures, third-party tool source, or photos: what a pin does, what a command means, how a bootloader behaves.
      - **Unknown**: not established yet; say what would settle it.
 3. **Bootloader, Pairing & Calibration Preservation**:
-   - Tools in this repository never execute mass-erase or chip-erase operations, and must preserve the resident bootloader, per-unit 2.4 GHz/Bluetooth pairing keys, and factory acoustic/microphone calibration regions.
+   - Tools in this repository never execute mass-erase or chip-erase operations, and must preserve the resident bootloader, per-unit 2.4 GHz/Bluetooth pairing keys (such as the 16-byte SIRK on `03f0:05b7`, where command `0x66 0x1E` is blocked), and factory acoustic/microphone calibration regions.
 
 ---
 
@@ -65,4 +70,4 @@ python3 inspect_usb_hid.py --offline        # decode both verified HID report de
 python3 inspect_usb_hid.py --sysfs          # passive read-only inspection of connected 03f0:05b7 & 03f0:06b7 via Linux sysfs
 ```
 
-`inspect_usb_hid.py` is strictly passive: `--sysfs` only reads kernel-cached descriptors from `/sys/bus/usb/devices`, `/sys/class/hidraw`, and `/proc/asound` (redacting serial numbers) and never opens `/dev/hidraw*` or sends packets to the receiver or headset.
+`inspect_usb_hid.py` is strictly passive: `--sysfs` only reads kernel-cached descriptors from `/sys/bus/usb/devices`, `/sys/class/hidraw`, and `/proc/asound` (redacting serial numbers) and never opens `/dev/hidraw*` or sends packets to the receiver or headset. To run the read-only `0x66` status queries (`0x81`..`0x8F`) via `query_status.py`, install `devices/hyperx-cloud-iii-wireless/udev/70-hyperx-cloud-iii-wireless.rules` first.

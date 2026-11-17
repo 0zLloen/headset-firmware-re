@@ -26,11 +26,11 @@ The HyperX Cloud III Wireless system is split across two FCC equipment authoriza
 
 ---
 
-## 3. Internal Architecture & Open Hardware Items
+## 3. Internal Architecture & Verified SoC / Flash Specifications
 
-| Item | Component | Status / Details | Evidence | What settles it |
+| Item | Component | Status / Details | Evidence | Source / What settles it |
 | :--- | :--- | :--- | :--- | :--- |
-| Main wireless audio SoC / MCU | Headset (`CL007`) | **Unknown** (main audio processing PCB + secondary button/wheel control board + plug-in Li-Po battery reported in community teardowns) | **Unknown** | Read package markings from the `B94-CL007` FCC internal photos exhibit or a non-destructive earcup teardown |
-| USB receiver SoC / MCU | Receiver (`CL007WA`, `03f0:05b7`) | **Unknown** (integrates Full-Speed USB 2.0 device controller, USB Audio Class 1.0 streaming engine, HID endpoint `0x84`, and 2.4 GHz GFSK/DTS radio) | **Unknown** | Read package markings from the `B94-CL007WA` FCC internal photos exhibit or a dongle teardown |
-| Flash memory & layout | Headset & Receiver | **Unknown** (internal MCU flash vs. external SPI NOR flash, bootloader offset, pairing key sector, and acoustic calibration sector) | **Unknown** | Unpack the NGENUITY firmware update payload (Step 3) and inspect PCB flash IC markings |
-| Debug / ISP pads | Headset & Receiver | **Unknown** | **Unknown** | Inspect PCB test points in internal photos and perform passive unpowered continuity checks |
+| Main wireless audio SoC / MCU | Headset (`CL007`, `03f0:06b7` / `03f0:0e9d` / `03f0:08b7`) | **Airoha (MediaTek) AB1565** Ultra-Low-Latency 2.0 (`ULL2`) Dual-Mode Wireless Audio SoC (`AB1565_Headset` on `headset_ref_design`; integrates ARM Cortex-M4F application MCU, Cadence Tensilica HiFi Mini Audio DSP, 2.4 GHz BT 5.3 / ULL 2.0 radio, USB 2.0 FS controller, audio codec, and Li-Po charger) | **Verified** | `TLV 0x0020` (`"AB1565_Headset"`) & `TLV 0x0021` (`"headset_ref_design"`) in `03F006B7.bin` (`v3.1.0.9`), 2026-11-17 (see [`firmware-updater.md`](firmware-updater.md)) |
+| USB receiver SoC / MCU | Receiver (`CL007WA`, `03f0:05b7` / `03f0:0c9d`) | **Airoha (MediaTek) AB1565** Ultra-Low-Latency 2.0 (`ULL2`) Dongle SoC (`AB1565_ULL2_DONGLE` on `dongle_ref_design`; same AB1565 silicon family running the ULL 2.0 USB Audio Class 1.0 + HID dongle stack) | **Verified** | `TLV 0x0020` (`"AB1565_ULL2_DONGLE"`) & `TLV 0x0021` (`"dongle_ref_design"`) in `03F005B7.bin` (`v4.1.0.9`), 2026-11-17 (see [`firmware-updater.md`](firmware-updater.md)) |
+| Flash memory & layout | Headset & Receiver | • **Receiver (`03F005B7.bin`)**: 3 FOTA partitions written to `0x00013000..0x000AC000` (`612 KB`), `0x000E2000..0x00216000` (`1,232 KB`), and `0x0023E000..0x0024C000` (`56 KB`) → requires **>= 4 MB (`32 Mbit`) SPI NOR flash**<br>• **Headset (`03F006B7.bin`)**: 4 FOTA partitions written up to `0x0040B000..0x004A1000` (`600 KB` ROFS voice prompts) → requires **>= 8 MB (`64 Mbit`) SPI NOR flash** | **Verified** (partition offsets/sizes) / **Inferred** (4 MB & 8 MB flash capacities) | `TLV 0x0012` & `TLV 0x0014` in `03F005B7.bin` and `03F006B7.bin`, 2026-11-17 (see [`firmware-updater.md`](firmware-updater.md)) |
+| Debug / ISP pads | Headset & Receiver | **Unknown** (Airoha AB1565 provides UART0/1WIRE debug/RACE and SWD pads on PCB) | **Unknown** | Physical PCB inspection |
